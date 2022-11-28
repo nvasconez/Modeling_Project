@@ -1,0 +1,19 @@
+#!/bin/bash
+#$ -M nvascone@nd.edu
+#$ -m abe
+#$ -q long
+#$ -pe mpi-24 48
+#$ -N octanol_360k
+
+module load lammps
+
+#mpirun -np $NSLOTS lmp_mpi -in in.mol_npt
+mpirun -np $NSLOTS lmp_mpi -in in.mol_nvt
+sh compile.sh
+
+export OMP_NUM_THREADS = ${NSLOTS}
+module load python
+
+python PyLAT.py -d -g --mol octanol --nummol 200 -f octanol_360k.json -v 2 octanol_360k.log octanol.data octanol_360k.lammpstrj
+
+#python PyLAT.py -d -g --mol pentanol --mol diEther --nummol 50 --nummol 50 -f pentanol_diEther.json -v 2 pentanol_diEther.log pentanol_diEther.data pentanol_diEther.lammpstrj

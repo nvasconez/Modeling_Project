@@ -1,0 +1,107 @@
+# LAMMPS input script - Example for Diffusion Study 
+# Input files
+
+variable        NAME index [JobName]    	# The name of the job - Used in PyLAT reading
+log             ${NAME}.log                     # Log file Name
+
+variable        infile index [.data]   		# DataFile built through MoSDef
+
+# Simulation settings 
+
+units		 real				# Length given in Angstroms 
+atom_style	 full				# How the atoms are defined in the input data file
+boundary         p p p           		# Periodic box in x, y and z
+pair_style	 lj/cut/coul/long 14.0    	# Set for TraPPE cutoff
+pair_modify      tail yes            		# Tail corrections - TraPPE parameters
+pair_modify      mix arithmetic      		# Lorentz-Berthelot pair interactions between dissimilar atom
+
+special_bonds   lj/coul 0.0 0.0 0.5
+kspace_style    ewald 0.0001
+bond_style      harmonic
+angle_style     harmonic
+dihedral_style  opls
+
+
+# Input settings
+
+variable   simulationTemp  index 310     	# Simulation temperature
+variable   simulationPress equal 0.987	 	# Simulation pressure
+
+# Output files frequencies
+variable        dumpfreq   index 1000          # Output frequency of dump information to dump
+variable        thermofreq index 1000          # Output frequency of property information to log
+variable        printfreq  index 1000          # Output frequency of information to be printed
+variable        restartfreq index 1000000      # Output frequency of restart files
+
+
+# Simulation run times 
+variable        NVT_equib  index 1000000       # Equilibration run length (in timesteps)
+variable        NVT_prod   index 3000000       # Simulation run length  (in timesteps)
+
+
+# Defining properties to output
+
+variable    step        equal step        
+variable    density     equal density 
+variable    temp        equal temp
+variable    press       equal press
+variable    ke          equal ke
+variable    pe          equal pe
+variable    etotal      equal etotal
+variable    enthalpy    equal enthalpy
+
+
+# Reading data, Neighbor list settings, energy minimization, assigning initial velocities & specifying thermodynamic property output style to log files 
+
+read_data	${infile}         
+neighbor        1.0 bin
+neigh_modify    delay 0 every 1 check yes page 1000000 one 20000
+timestep        5.0
+
+minimize        1e-4 1e-6 10000 100000        #	Energy minimize before creating velocities
+#velocity	all create ${simulationTemp} 886874 mom yes rot yes dist gaussian
+
+velocity        all create  ${simulationTemp} 317879265 units box  #Seed value for inital velcoities - Change for independent simulations
+velocity        all zero linear units box
+
+thermo_style    custom step vol temp press ke pe etotal enthalpy evdwl ecoul epair ebond eangle edihed eimp emol elong etail lx ly lz xy xz yz density
+thermo          ${thermofreq}
+
+
+#Fixes consistent for simulation parametes in NVT ensemble
+fix npt_density all npt temp ${simulationTemp} ${simulationTemp} 100 iso ${simulationPress} ${simulationPress} 1000
+
+run 500000
+
+unfix npt_density
+
+fix reshape_box all deform 1 x final 0.0 34.5945 y final 0.0 34.3945 z final 0.0 34.3945 units box
+
+run 100000000
+# Equilibration run
+
+fix             NVT_equib all nvt temp ${simulationTemp} ${simulationTemp} 100
+
+print           "Step Density Temperature Pressure KinEng PotEng TotEng" file Properties_equib_octane_50p.txt
+fix             PRINT_equib all print ${printfreq} "$(v_step) $(v_density) $(v_temp) $(v_press) $(v_pe) $(v_ke) $(v_etotal) $(v_enthalpy)" append Properties_equib_octane_50p.txt title ""
+# Output files above for quick verification of equilibration
+
+run             ${NVT_equib}
+
+unfix           NVT_equib
+
+
+#  Production run 
+
+fix             NVT_prod all nvt temp ${simulationTemp} ${simulationTemp} 100
+
+print           "Step Density Temperature Pressure KinEng PotEng TotEng" file Properties_prod_octane_50p.txt
+fix             PRINT_prod all print ${printfreq} "$(v_step) $(v_density) $(v_temp) $(v_press) $(v_pe) $(v_ke) $(v_etotal) $(v_enthalpy)" append Properties_prod_octane_50p.txt title ""
+
+dump            DUMP_file all custom ${dumpfreq} ${NAME}.lammpstrj id type x y z xu yu zu vx vy vz mol
+
+#restart         ${restartfreq} restart.${NAME}.1 restart.${NAME}.2 #Can be read by PyLAT if inital script fails
+
+run             ${NVT_prod}
+
+write_data      restart.${NAME}.final.data	#Data file for restart 
