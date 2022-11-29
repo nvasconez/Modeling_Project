@@ -8,10 +8,12 @@ General Guidelines
         .txt are quick readable files to test for equilibration and production runs
         Some lammps trajectories were unable to be uploaded due to file size and available on request
         The in.mol_nvt is the lammps job script to run simulations
-        The in.submit file is the submission file to the cluster that runs the lammps job and runs PyLAT automatically after the lammps output
+        The in.submit file is the submission file to the cluster that runs the lammps job and runs PyLAT automatically
+        after lammps outputs the proper files
         
 The bilayer directory leads to the results that change the functional group on each lipid
 Octanol-mix coordinates to octanol diffusion with different lipids
 Octanol-Temp is diffusion of octanol at different temperatures using the oplsaa model
 Octanol-UA is diffusion of octanol at different temperatures using the TraPPE all atom paramters
-        
+The files listed in the main folder are for workup in the json reader file and graphing scripts
+for the final project writeup
